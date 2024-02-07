@@ -3,13 +3,14 @@ require 'pry'
 require 'httparty'
 require 'json'
 require 'pastel'
+require 'tty-box'
 
 require_relative 'episode'
-require_relative 'podcast_display'
+require_relative 'podcast_formatter'
 
 class PodcastFeed
 
-  attr_accessor :title, :summary, :url, :episodes
+  attr_accessor :title, :summary, :url, :episodes, :recent_episodes
 
   def initialize
     # create the initialised podcast feeds to be stored as json object
@@ -17,16 +18,13 @@ class PodcastFeed
     @summary = nil
     @url = nil
     @episodes = []
+    @recent_episodes = []
   end
 
   def self.initialize_from_url(url)
     new_feed = PodcastFeed.new()
     xml = HTTParty.get(url).body
     parsed_podcast = Feedjira.parse(xml)
-    # look at podcast itself
-    new_feed.title = parsed_podcast.title
-    new_feed.summary = parsed_podcast.description
-    new_feed.url = parsed_podcast.url
     parsed_podcast.entries.each do |entry|
       episode = PodcastEpisode.new(title: entry.title,
                                    author: entry.itunes_author, 
@@ -36,50 +34,45 @@ class PodcastFeed
                                    duration: entry.itunes_duration)
       new_feed.episodes << episode
     end
+    new_feed.recent_episodes = most_recent_episodes(new_feed.episodes)
     new_feed
   end
 
-  # def self.rss_feeder(feed_url)
-    
-  #   xml = HTTParty.get(feed_url).body
-  #   feed = Feedjira.parse(xml)
-  #   binding.pry
-  #   feed.entries.each do |entry|
-  #     PodcastFeed.new(entry)
+  def self.listening_options_to_user(recent_episodes)
+    recent_episodes.each_with_index do |episode, index|
+      puts "Episode #{index + 1}: "
+      PodcastFormatter.new(episode).display
+    end
+  end
 
-  #   end
 
-  #   # Looking at the methods on the Feedjira feed, the body of the feed can
-  #   # be split into its attributed
-  #   puts "Title of the feed is #{feed.entries.title}"
-  #   puts "Summary of the feed is #{feed.entries.summary}"
-  #   puts "URL of the feed is #{feed.entries.url}"
-  # end
+  private
 
-  # def self.write_feed_to_file(feeds:)
-  #   file = File.read('feeds.json')
-  #   array = JSON.parse(file)
-  #   array["feeds"] = []
-  #   # Add each feed to the 'feeds' array
-  #   feeds.each do |feed|
-  #     array["feeds"] << feed
-  #   end
-  # end
-
-  # rss_feeder('https://feeds.redcircle.com/c55cf02c-7b36-4f73-bb56-48cc5fc184a0')
+  def self.most_recent_episodes(feed_episodes)
+    feed_episodes.sort_by { |episode| episode.published }
+    recent_episodes = feed_episodes.first(3)
+  end
 end
 
 podcast = PodcastFeed.initialize_from_url('https://feeds.redcircle.com/c55cf02c-7b36-4f73-bb56-48cc5fc184a0')
-puts podcast.title
-puts podcast.summary
-puts podcast.url
-podcast.episodes.each do |episode|
-  # puts "*#{episode.title}"
-  binding.pry
-  PodcastDisplay.new(episode).pretty_title
+# podcast.episodes.each do |episode|
+#   PodcastFormatter.new(episode).display
+# end
+puts Pastel.new.magenta.on_white("Which recent episode would you like to listen too?: 1, 2 or 3")
+options = PodcastFeed.listening_options_to_user(podcast.recent_episodes)
+
+user_selection = gets
+case user_selection.to_i
+when 1
+  # implement the playback of the file
+  options.first
+when 2
+  options[1]
+when 3
+  options.last
 end
 
-puts "Last 3 titles in the feed: #{podcast.episodes}"
 
 # display interesting things about the podcast itself
 # what is the title of the last three episodes, and some intersting things about them and make it pretty
+# give a command prompt to ask which one we want to play, from these sorted episodes
