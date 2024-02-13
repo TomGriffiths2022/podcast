@@ -9,7 +9,6 @@ class PodcastEpisode
     @audio_url = audio_url
     @published = published
     @duration = duration
-    # look at important info to extract
   end
 
   def to_s
