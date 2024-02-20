@@ -55,11 +55,6 @@ class PodcastFeed
 end
 
 
-
-
-
-
-
 # display interesting things about the podcast itself
 # what is the title of the last three episodes, and some intersting things about them and make it pretty
 # give a command prompt to ask which one we want to play, from these sorted episodes

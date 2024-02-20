@@ -1,5 +1,7 @@
 require_relative 'feed'
 
+ALLOWED_EPISODE_SELECTIONS = [1,2,3]
+
 ### SETUP METHODS ###
 def get_user_selection(user_choice, options_array)
   case user_choice.to_i
@@ -13,7 +15,7 @@ def get_user_selection(user_choice, options_array)
     end
     # detaches from the parent process in order to be able to terminate
     Process.detach(option_one)
-    user_input_loop(option_one) 
+    user_listening_loop(option_one) 
   when 2
     puts Pastel.new.red("Playing #{options_array[1].title}....")
     option_two = fork do
@@ -23,8 +25,8 @@ def get_user_selection(user_choice, options_array)
       exec "mpg123 #{options_array[1].audio_url}"
     end
     Process.detach(option_two)
-    user_input_loop(option_two) 
-  else
+    user_listening_loop(option_two) 
+  when 3
     puts Pastel.new.red("Playing #{options_array.last.title}....")
     option_three = fork do
       # splitting the process into a fork to be able to isolate the signal for terminating
@@ -33,11 +35,13 @@ def get_user_selection(user_choice, options_array)
       exec "mpg123 #{options_array.last.audio_url}"
     end
     Process.detach(option_three)
-    user_input_loop(option_three) 
+    user_listening_loop(option_three)
+  else
+    raise ArgumentError, "Unknown option #{user_choice}, please choose from 1, 2 or 3"
   end 
 end
 
-def user_input_loop(chosen_option)
+def user_listening_loop(chosen_option)
   # passing in which option to loop on
   loop do
     # put a prompt on screen to ask if the user wants to continue listening
@@ -62,9 +66,19 @@ podcast = PodcastFeed.initialize_from_url('https://feeds.redcircle.com/c55cf02c-
 # podcast.episodes.each do |episode|
 #   PodcastFormatter.new(episode).display
 # end
+
+# initialise the creation of the PodcastFeed object based on the url given
 options = PodcastFeed.listening_options_to_user(podcast.recent_episodes)
 puts Pastel.new.magenta.on_white("Which recent episode would you like to listen too?: 1, 2 or 3")
 
-user_selection = gets.chomp
-
-get_user_selection(user_selection, options)
+loop do
+  begin
+    # determines the user's choice of which of the 3 latest episodes they would like to hear
+    user_selection = gets.chomp.to_i
+    # passing in the user's choice as well as the array of episode options to choose from
+    get_user_selection(user_selection, options)
+    break
+  rescue ArgumentError => e
+    puts Pastel.new.magenta.on_white("#{e.message}")
+  end
+end
